@@ -4,30 +4,52 @@ import discord
 from discord.ext import commands, tasks
 from typing import Dict
 
-from config import ADMIN_API_URL, ADMINS_CHANNEL_ID, ADMIN_ALLOWED_ROLE_IDS, ADMIN_MAPPINGS_FILE, SERVER_NAME
+from config import (
+    ADMIN_API_URL,
+    ADMINS_CHANNEL_ID,
+    ADMIN_ALLOWED_ROLE_IDS,
+    ADMIN_MAPPINGS_FILE,
+    SERVER_NAME,
+    ADMIN_API_KEY
+)
 
-def load_mappings() -> Dict[str, int]:
+
+def load_mappings() -> Dict:
     try:
         with open(ADMIN_MAPPINGS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {}
 
-def save_mappings(data: Dict[str, int]):
+
+def save_mappings(data: Dict):
     with open(ADMIN_MAPPINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+
 async def fetch_data(api_url: str):
     try:
+        headers = {
+            "x-api-key": ADMIN_API_KEY
+        }
+
         async with aiohttp.ClientSession() as session:
-            async with session.get(api_url, timeout=10) as response:
+            async with session.get(api_url, headers=headers, timeout=10) as response:
+
                 if response.status != 200:
+                    print(f"[API ERROR] Status: {response.status}")
+                    print(await response.text())
                     return None
+
                 return await response.json()
-    except Exception:
+
+    except Exception as e:
+        print(f"[FETCH ERROR] {e}")
         return None
 
+
 class Admins(commands.Cog):
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.update_admins_loop.start()
@@ -37,9 +59,7 @@ class Admins(commands.Cog):
 
     @commands.command(name="addadmintobot")
     async def add_admin_command(self, ctx: commands.Context):
-        """
-        Usage: !addadmintobot @user uuid
-        """
+
         if ctx.author.bot:
             return
 
@@ -49,28 +69,33 @@ class Admins(commands.Cog):
             return
 
         parts = ctx.message.content.split()
+
         if len(parts) < 3 or not ctx.message.mentions:
             await ctx.send("Формат: !addadmintobot @user uuid")
             return
 
         user = ctx.message.mentions[0]
+
         try:
             uuid = int(parts[-1])
-        except Exception:
+        except:
             await ctx.send("UUID має бути числом.")
             return
 
         data = load_mappings()
+
         if "uuid_to_discord" not in data:
             data["uuid_to_discord"] = {}
 
         data["uuid_to_discord"][str(uuid)] = user.id
+
         save_mappings(data)
 
         await ctx.send(f"uuid {uuid} прив'язано до {user.mention}")
 
     @tasks.loop(minutes=1)
     async def update_admins_loop(self):
+
         channel = self.bot.get_channel(ADMINS_CHANNEL_ID)
         if not channel:
             return
@@ -86,7 +111,7 @@ class Admins(commands.Cog):
         server_peak = params.get("peak", 0)
 
         embed = discord.Embed(
-            title=f"💎 {SERVER_NAME}({server_online})",
+            title=f"💎 {SERVER_NAME} ({server_online})",
             color=discord.Color.blurple()
         )
 
@@ -100,7 +125,9 @@ class Admins(commands.Cog):
         guild = channel.guild
 
         lines = []
+
         for admin in sorted(admins, key=lambda x: x.get("level", 0), reverse=True):
+
             nickname = admin.get("name", "Unknown")
             level = admin.get("level", 0)
             uuid = str(admin.get("uuid"))
@@ -119,8 +146,7 @@ class Admins(commands.Cog):
                 else:
                     status_part = "❌"
 
-            line = f"{status_part} Нік: **{nickname}** Рівень: {level}"
-            lines.append(line)
+            lines.append(f"{status_part} Нік: **{nickname}** Рівень: {level}")
 
         description = f"**Адмінів в мережі: {len(admins)}**\n"
         description += "━━━━━━━━━━━━━━━━━━\n"
