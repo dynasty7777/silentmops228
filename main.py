@@ -23,6 +23,7 @@ async def load_cogs():
     await bot.load_extension("cogs.ticket.ticket")
     await bot.load_extension("cogs.support.support")
     await bot.load_extension("cogs.changelog.changelog")
+    await bot.load_extension("cogs.admins.admins")
 
 
 @bot.event

@@ -4,3 +4,10 @@ SUPPORT_CHANNEL_ID = 1471624828522860615 #канал, где тех.поддер
 ADMIN_ROLE_ID = 1471624857044258881 #кто имеет право отправлять !ticketpanel / !supportpanel и остальные команды
 SUPPORT_ROLE_IDS = 1471624857044258881, 1473387715226763295 #кого тегает при создании тикета
 TARGET_CHANNEL_ID = 1471268569923981414 #сhange log channel
+
+#admins.display
+ADMIN_API_URL = "https://stake-rp.com/api/admin/admins" #api
+ADMINS_CHANNEL_ID = 1472325001922351204   # канал для постов о админах
+ADMIN_ALLOWED_ROLE_IDS = [1471624857044258881, 1473387715226763295] # айди ролей которые могут добавлять админов в список
+ADMIN_MAPPINGS_FILE = "admin_mappings.json" #файл где добнутые админы в список
+SERVER_NAME = "Stake" # название сервера
