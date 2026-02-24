@@ -24,6 +24,7 @@ async def load_cogs():
     await bot.load_extension("cogs.support.support")
     await bot.load_extension("cogs.changelog.changelog")
     await bot.load_extension("cogs.admins.admins")
+    
 
 
 @bot.event
@@ -35,6 +36,9 @@ async def on_ready():
     synced = await bot.tree.sync(guild=guild)
 
     print("SYNC RESULT:", synced)
+
+
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 
 

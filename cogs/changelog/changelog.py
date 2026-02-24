@@ -1,7 +1,6 @@
 import asyncio
 from datetime import datetime
 import discord
-from discord import app_commands
 from discord.ext import commands
 from config import ADMIN_ROLE_ID, TARGET_CHANNEL_ID
 
@@ -9,9 +8,9 @@ GUILD_ID = 1422970743595077797
 
 
 def admin_only():
-    async def predicate(interaction: discord.Interaction):
-        return any(role.id == ADMIN_ROLE_ID for role in interaction.user.roles)
-    return app_commands.check(predicate)
+    async def predicate(ctx: commands.Context):
+        return any(role.id == ADMIN_ROLE_ID for role in ctx.author.roles)
+    return commands.check(predicate)
 
 
 class Scheduler(commands.Cog):
@@ -19,54 +18,48 @@ class Scheduler(commands.Cog):
         self.bot = bot
         self.tasks = []
 
-        group = app_commands.Group(name="changelog", description="Changelog tools")
+    @commands.command(name="sendnow")
+    @admin_only()
+    async def sendnow(self, ctx: commands.Context, link: str):
+        await self.send_message_from_link(link)
+        await ctx.send("done")
 
-        @group.command(name="sendnow")
-        @admin_only()
-        async def sendnow(interaction: discord.Interaction, link: str):
-            await interaction.response.defer(ephemeral=True)
-            await self.send_message_from_link(link)
-            await interaction.followup.send("done", ephemeral=True)
-
-        @group.command(name="schedule")
-        @admin_only()
-        async def schedule(interaction: discord.Interaction, time: str, link: str):
-            await interaction.response.defer(ephemeral=True)
-
+    @commands.command(name="schedule")
+    @admin_only()
+    async def schedule(self, ctx: commands.Context, time: str, *, link: str):
+        try:
             when = datetime.strptime(time, "%Y-%m-%d %H:%M")
-            task = self.bot.loop.create_task(self.schedule_worker(when, link))
-            self.tasks.append((when, link, task))
+        except ValueError:
+            await ctx.send("Format: YYYY-MM-DD HH:MM")
+            return
 
-            await interaction.followup.send("scheduled", ephemeral=True)
+        task = self.bot.loop.create_task(self.schedule_worker(when, link))
+        self.tasks.append((when, link, task))
 
-        @group.command(name="list")
-        @admin_only()
-        async def list_cmd(interaction: discord.Interaction):
-            await interaction.response.defer(ephemeral=True)
+        await ctx.send("scheduled")
 
-            if not self.tasks:
-                await interaction.followup.send("empty", ephemeral=True)
-                return
+    @commands.command(name="list")
+    @admin_only()
+    async def list_tasks(self, ctx: commands.Context):
+        if not self.tasks:
+            await ctx.send("empty")
+            return
 
-            text = "\n".join(
-                f"{i+1}. {t[0].strftime('%Y-%m-%d %H:%M')}"
-                for i, t in enumerate(self.tasks)
-            )
+        text = "\n".join(
+            f"{i+1}. {t[0].strftime('%Y-%m-%d %H:%M')}"
+            for i, t in enumerate(self.tasks)
+        )
 
-            await interaction.followup.send(text, ephemeral=True)
+        await ctx.send(text)
 
-        @group.command(name="clear")
-        @admin_only()
-        async def clear(interaction: discord.Interaction):
-            await interaction.response.defer(ephemeral=True)
+    @commands.command(name="clear")
+    @admin_only()
+    async def clear(self, ctx: commands.Context):
+        for _, _, task in self.tasks:
+            task.cancel()
 
-            for _, _, task in self.tasks:
-                task.cancel()
-
-            self.tasks.clear()
-            await interaction.followup.send("cleared", ephemeral=True)
-
-        bot.tree.add_command(group, guild=discord.Object(id=GUILD_ID))
+        self.tasks.clear()
+        await ctx.send("cleared")
 
     async def send_message_from_link(self, link: str):
         parts = link.split("/")
